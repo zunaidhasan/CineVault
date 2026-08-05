@@ -188,7 +188,7 @@ The repo includes a [`render.yaml`](render.yaml) Blueprint that defines both ser
 | `cinevault-api` | `FRONTEND_URL` | `https://cinevault-web.onrender.com` |
 | `cinevault-web` | `NEXT_PUBLIC_API_URL` | `https://cinevault-api.onrender.com/api` |
 
-4. Deploy. The build runs `prisma generate` and the pre-deploy step runs `prisma migrate deploy`.
+4. Deploy. The build automatically runs `prisma generate` and `prisma migrate deploy` (idempotent — already applied, so it's a no-op on first deploy).
 5. **Seed once** — open the **Shell** for `cinevault-api` and run:
 
    ```bash
