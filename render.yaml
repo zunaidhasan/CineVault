@@ -25,6 +25,8 @@ services:
         sync: false # ← https://cinevault-web.onrender.com
       - key: UPLOAD_DIR
         value: uploads
+      - key: NODE_VERSION
+        value: "22"
 
   # ---- Frontend: Next.js App Router (server-rendered, needs Node runtime) ----
   - type: web
@@ -39,3 +41,5 @@ services:
         value: production
       - key: NEXT_PUBLIC_API_URL
         sync: false # ← https://cinevault-api.onrender.com/api
+      - key: NODE_VERSION
+        value: "22"
