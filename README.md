@@ -207,15 +207,15 @@ The repo's [`render.yaml`](render.yaml) Blueprint defines the `cinevault-api` se
 
 | Variable | Value |
 |----------|-------|
-| `NEXT_PUBLIC_API_URL` | `https://cinevault-api.onrender.com/api` |
+| `NEXT_PUBLIC_API_URL` | `https://<your-api>.onrender.com/api` |
 
 4. **Deploy** ✅ — every push to `master` auto-deploys.
 
 ### 4. Notes & limitations
 
-- Render **free** web services spin down after ~15 min of inactivity; the first request after idle takes ~30–60 s (cold start). Because Vercel server-rendered pages call the API on every request and Vercel Hobby functions time out after ~10 s, a **cold API can cause occasional 504s**. Keep the API warm with a free uptime pinger (e.g. [UptimeRobot](https://uptimerobot.com) hitting `https://cinevault-api.onrender.com/api/health` every 5–10 min), or upgrade Render's plan.
+- Render **free** web services spin down after ~15 min of inactivity; the first request after idle takes ~30–60 s (cold start). Because Vercel server-rendered pages call the API on every request and Vercel Hobby functions time out after ~10 s, a **cold API can cause occasional 504s**. Keep the API warm with a free uptime pinger (e.g. [UptimeRobot](https://uptimerobot.com) hitting `https://<your-api>.onrender.com/api/health` every 5–10 min), or upgrade Render's plan.
 - Render's filesystem is **ephemeral** — files uploaded via the API (`backend/uploads/`) are lost on redeploy. For permanent uploads, use object storage (e.g. Cloudinary/S3). Seed content uses `frontend/public` assets, which are unaffected.
-- Uploaded images are served at `https://cinevault-api.onrender.com/uploads/...`.
+- Uploaded images are served at `https://<your-api>.onrender.com/uploads/...`.
 - Vercel builds install `devDependencies`, so Tailwind (`@tailwindcss/postcss`) and TypeScript are available — no extra config needed.
 
 ---

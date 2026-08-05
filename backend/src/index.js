@@ -45,8 +45,25 @@ app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/activities', require('./routes/activities'));
 app.use('/api/recommendations', require('./routes/recommendations'));
 
+// Root — friendly landing for the API base URL
+app.get('/', (_req, res) => {
+  res.json({
+    name: 'CineVault API',
+    version: '1.0.0',
+    status: 'ok',
+    endpoints: '/api',
+    health: '/api/health',
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // Health check
 app.get('/api/health', (_, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
+
+// 404 — JSON response for unknown routes (instead of Express's default HTML)
+app.use((_req, res) => {
+  res.status(404).json({ error: 'Not found' });
+});
 
 // Error handler
 app.use((err, _req, res, _next) => {
