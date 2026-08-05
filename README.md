@@ -155,53 +155,68 @@ Open **[http://localhost:3000](http://localhost:3000)** 🎉
 - The project uses **PostgreSQL** (Prisma `provider = "postgresql"`, `DATABASE_URL`). SQLite was used during early development; migrations have been regenerated for Postgres.
 - Run `npx prisma migrate deploy` to apply migrations, and `npm run prisma:seed` to (re)seed everything.
 - The seed includes: **13 movies, 5 TV series with full Season 1 episode lists, 77 actors/directors with real photos and bios, demo users, ratings, reviews, follows and notifications**.
-- See [Deployment](#-deployment-render--neon) below.
+- See [Deployment](#-deployment-render-api--vercel-frontend--neon-db) below.
 
 ---
 
-## 🌐 Deployment (Render + Neon)
+## 🌐 Deployment (Render API + Vercel frontend + Neon DB)
 
-The app is deployed as **two Render Web Services** pointing at a **Neon Postgres** database:
+The app is deployed across three providers:
 
-- `cinevault-api` — Express + Prisma API (health check at `/api/health`)
-- `cinevault-web` — Next.js app (server-rendered, run with `next start`)
-
-The repo includes a [`render.yaml`](render.yaml) Blueprint that defines both services.
+- **`cinevault-api`** — Express + Prisma API on a **Render Web Service** (health check at `/api/health`)
+- **`cinevault-web`** — Next.js frontend on **Vercel** (global CDN, no spin-down)
+- **Neon Postgres** — the database
 
 ### 1. Database — Neon Postgres
 
 1. Create a free project at [neon.tech](https://neon.tech)
 2. Copy the **connection string** (Direct or pooled) — looks like:
    `postgresql://user:password@ep-xxx.region.aws.neon.tech/cinevault?sslmode=require`
-3. Keep it handy — it becomes the `DATABASE_URL` on the backend service.
+3. It becomes the `DATABASE_URL` on the Render backend service.
 
-### 2. Deploy on Render
+### 2. Backend — deploy on Render
+
+The repo's [`render.yaml`](render.yaml) Blueprint defines the `cinevault-api` service.
 
 1. Push this repo to GitHub (already done — `zunaidhasan/CineVault`).
-2. In the Render dashboard: **New → Blueprint** and select the `CineVault` repo.
-3. Render creates `cinevault-api` and `cinevault-web`. Then fill in the env vars:
+2. In the Render dashboard: **New → Blueprint** and select the repo.
+3. Fill in the env vars on `cinevault-api`:
 
-| Service | Variable | Value |
-|---------|----------|-------|
-| `cinevault-api` | `DATABASE_URL` | Your Neon connection string |
-| `cinevault-api` | `JWT_SECRET` | Strong random secret (e.g. `openssl rand -hex 32`) |
-| `cinevault-api` | `FRONTEND_URL` | `https://cinevault-web.onrender.com` |
-| `cinevault-web` | `NEXT_PUBLIC_API_URL` | `https://cinevault-api.onrender.com/api` |
+| Variable | Value |
+|----------|-------|
+| `DATABASE_URL` | Your Neon connection string |
+| `JWT_SECRET` | Strong random secret (e.g. `openssl rand -hex 32`) |
+| `FRONTEND_URL` | `https://<your-project>.vercel.app` (CORS allowlist) |
 
-4. Deploy. The build automatically runs `prisma generate` and `prisma migrate deploy` (idempotent — already applied, so it's a no-op on first deploy).
+4. Deploy. The build automatically runs `prisma generate` and `prisma migrate deploy` (idempotent — already applied, so it's a no-op).
 5. **Seed once** — open the **Shell** for `cinevault-api` and run:
 
    ```bash
    node prisma/seed.js
    ```
 
-   > ⚠️ The seed wipes and re-creates all content, so run it only once (or when you want to reset the demo data). Do **not** add it to the build/pre-deploy pipeline, or registered users and their data would be erased on every deploy.
+   > ⚠️ The seed wipes and re-creates all content, so run it only once (or when you want to reset the demo data). Do **not** add it to the build pipeline, or registered users and their data would be erased on every deploy.
 
-### 3. Notes & limitations
+### 3. Frontend — deploy on Vercel
 
-- Render **free** web services spin down after ~15 min of inactivity; the first request after idle takes ~30–60 s (cold start).
+1. Go to [vercel.com/new](https://vercel.com/new) and **Import** the `zunaidhasan/CineVault` repo.
+2. Project settings:
+   - **Root Directory:** `frontend`
+   - **Framework Preset:** Next.js (auto-detected)
+3. Add the environment variable:
+
+| Variable | Value |
+|----------|-------|
+| `NEXT_PUBLIC_API_URL` | `https://cinevault-api.onrender.com/api` |
+
+4. **Deploy** ✅ — every push to `master` auto-deploys.
+
+### 4. Notes & limitations
+
+- Render **free** web services spin down after ~15 min of inactivity; the first request after idle takes ~30–60 s (cold start). Because Vercel server-rendered pages call the API on every request and Vercel Hobby functions time out after ~10 s, a **cold API can cause occasional 504s**. Keep the API warm with a free uptime pinger (e.g. [UptimeRobot](https://uptimerobot.com) hitting `https://cinevault-api.onrender.com/api/health` every 5–10 min), or upgrade Render's plan.
 - Render's filesystem is **ephemeral** — files uploaded via the API (`backend/uploads/`) are lost on redeploy. For permanent uploads, use object storage (e.g. Cloudinary/S3). Seed content uses `frontend/public` assets, which are unaffected.
 - Uploaded images are served at `https://cinevault-api.onrender.com/uploads/...`.
+- Vercel builds install `devDependencies`, so Tailwind (`@tailwindcss/postcss`) and TypeScript are available — no extra config needed.
 
 ---
 

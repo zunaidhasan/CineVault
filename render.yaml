@@ -1,4 +1,5 @@
 # Render Blueprint — https://render.com/docs/blueprint-spec
+# Deploys the Express + Prisma backend (the Next.js frontend runs on Vercel).
 # Deploy: Render dashboard → New → Blueprint → select zunaidhasan/CineVault
 # Then fill in the `sync: false` env vars (see README "Deployment" section).
 
@@ -9,10 +10,10 @@ services:
     runtime: node
     plan: free
     rootDir: backend
-    # migrate deploy is idempotent — safe to run on every build
-    # (preDeployCommand is not supported on the free plan)
     # --include=dev: NODE_ENV=production makes npm skip devDependencies,
     # which include `prisma` (needed for generate/migrate).
+    # migrate deploy is idempotent — safe to run on every build
+    # (preDeployCommand is not supported on the free plan).
     buildCommand: npm install --include=dev && npx prisma generate && npx prisma migrate deploy
     startCommand: npm start
     healthCheckPath: /api/health
@@ -20,30 +21,12 @@ services:
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
-        sync: false # ← paste your Neon connection string
+        sync: false # ← your Neon connection string
       - key: JWT_SECRET
         sync: false # ← long random string, e.g. `openssl rand -hex 32`
       - key: FRONTEND_URL
-        sync: false # ← https://cinevault-web.onrender.com
+        sync: false # ← https://<your-project>.vercel.app (CORS allowlist)
       - key: UPLOAD_DIR
         value: uploads
-      - key: NODE_VERSION
-        value: "22"
-
-  # ---- Frontend: Next.js App Router (server-rendered, needs Node runtime) ----
-  - type: web
-    name: cinevault-web
-    runtime: node
-    plan: free
-    rootDir: frontend
-    # --include=dev: NODE_ENV=production makes npm skip devDependencies,
-    # which include @tailwindcss/postcss + typescript (needed by the build).
-    buildCommand: npm install --include=dev && npm run build
-    startCommand: npm start
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: NEXT_PUBLIC_API_URL
-        sync: false # ← https://cinevault-api.onrender.com/api
       - key: NODE_VERSION
         value: "22"
