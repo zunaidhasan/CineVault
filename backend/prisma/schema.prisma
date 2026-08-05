@@ -1,0 +1,487 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  username      String    @unique
+  passwordHash  String
+  fullName      String?
+  avatarUrl     String?
+  bio           String?
+  role          String    @default("USER")
+  isVerified    Boolean   @default(false)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  ratings       Rating[]
+  reviews       Review[]
+  watchlist     Watchlist[]
+  favorites     Favorite[]
+  sessions      Session[]
+  following     Follow[]        @relation("Following")
+  followers     Follow[]        @relation("Followers")
+  notifications Notification[]
+  activities    Activity[]
+  reviewVotes   ReviewVote[]
+
+  @@map("users")
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  userId       String
+  token        String   @unique
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model Movie {
+  id              String     @id @default(uuid())
+  title           String
+  slug            String     @unique
+  overview        String?
+  tagline         String?
+  posterUrl       String?
+  backdropUrl     String?
+  releaseDate     DateTime?
+  runtime         Int?
+  budget          Float?
+  revenue         Float?
+  status          String     @default("Released")
+  homepageUrl     String?
+  trailerUrl      String?
+  imdbRating      Float?
+  metaScore       Int?
+  contentRating   String?
+  isTrending      Boolean    @default(false)
+  trendingRank    Int?
+  isUpcoming      Boolean    @default(false)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  genres          MovieGenre[]
+  cast            MovieCast[]
+  crew            MovieCrew[]
+  ratings         Rating[]
+  reviews         Review[]
+  media           Media[]
+  related         RelatedMovie[]     @relation("MovieToRelated")
+  relatedTo       RelatedMovie[]     @relation("RelatedToMovie")
+  productionLinks MovieCompany[]
+  categories      MovieCategory[]
+  watchlist       Watchlist[]
+  favorites       Favorite[]
+
+  @@map("movies")
+}
+
+model TVSeries {
+  id              String       @id @default(uuid())
+  title           String
+  slug            String       @unique
+  overview        String?
+  posterUrl       String?
+  backdropUrl     String?
+  firstAirDate    DateTime?
+  lastAirDate     DateTime?
+  status          String       @default("Returning Series")
+  numberOfSeasons Int?
+  numberOfEpisodes Int?
+  trailerUrl      String?
+  imdbRating      Float?
+  contentRating   String?
+  isTrending      Boolean      @default(false)
+  trendingRank    Int?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  genres          SeriesGenre[]
+  seasons         Season[]
+  cast            SeriesCast[]
+  crew            SeriesCrew[]
+  ratings         Rating[]
+  reviews         Review[]
+  media           Media[]
+  productionLinks SeriesCompany[]
+  watchlist       Watchlist[]
+  favorites       Favorite[]
+
+  @@map("tv_series")
+}
+
+model Season {
+  id          String    @id @default(uuid())
+  seriesId    String
+  seasonNumber Int
+  title       String?
+  overview    String?
+  posterUrl   String?
+  airDate     DateTime?
+  episodeCount Int?
+
+  series      TVSeries  @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  episodes    Episode[]
+
+  @@unique([seriesId, seasonNumber])
+  @@map("seasons")
+}
+
+model Episode {
+  id          String    @id @default(uuid())
+  seasonId    String
+  episodeNumber Int
+  title       String
+  overview    String?
+  runtime     Int?
+  airDate     DateTime?
+  stillUrl    String?
+  imdbRating  Float?
+
+  season      Season    @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+
+  @@unique([seasonId, episodeNumber])
+  @@map("episodes")
+}
+
+model Person {
+  id              String    @id @default(uuid())
+  name            String
+  slug            String    @unique
+  photoUrl        String?
+  biography       String?
+  birthDate       DateTime?
+  birthPlace      String?
+  deathDate       DateTime?
+  height          String?
+  knownFor        String?
+  imdbId          String?   @unique
+
+  movieCastRoles  MovieCast[]
+  movieCrewRoles  MovieCrew[]
+  seriesCastRoles SeriesCast[]
+  seriesCrewRoles SeriesCrew[]
+
+  @@map("people")
+}
+
+model Genre {
+  id     String       @id @default(uuid())
+  name   String       @unique
+  slug   String       @unique
+
+  movies MovieGenre[]
+  series SeriesGenre[]
+
+  @@map("genres")
+}
+
+model MovieGenre {
+  movieId String
+  genreId String
+
+  movie   Movie  @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  genre   Genre  @relation(fields: [genreId], references: [id], onDelete: Cascade)
+
+  @@id([movieId, genreId])
+  @@map("movie_genres")
+}
+
+model SeriesGenre {
+  seriesId String
+  genreId  String
+
+  series   TVSeries @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  genre    Genre    @relation(fields: [genreId], references: [id], onDelete: Cascade)
+
+  @@id([seriesId, genreId])
+  @@map("series_genres")
+}
+
+model MovieCast {
+  id          String  @id @default(uuid())
+  movieId     String
+  personId    String
+  character   String?
+  role        String  @default("Actor")
+  order       Int     @default(0)
+
+  movie       Movie   @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  person      Person  @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@map("movie_cast")
+}
+
+model MovieCrew {
+  id        String @id @default(uuid())
+  movieId   String
+  personId  String
+  job       String
+  department String?
+
+  movie     Movie  @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  person    Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@map("movie_crew")
+}
+
+model SeriesCast {
+  id        String   @id @default(uuid())
+  seriesId  String
+  personId  String
+  character String?
+  role      String   @default("Actor")
+  order     Int      @default(0)
+
+  series    TVSeries @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  person    Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@map("series_cast")
+}
+
+model SeriesCrew {
+  id         String   @id @default(uuid())
+  seriesId   String
+  personId   String
+  job        String
+  department String?
+
+  series     TVSeries @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  person     Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@map("series_crew")
+}
+
+model ProductionCompany {
+  id      String  @id @default(uuid())
+  name    String  @unique
+  slug    String  @unique
+  logoUrl String?
+
+  movies  MovieCompany[]
+  series  SeriesCompany[]
+
+  @@map("production_companies")
+}
+
+model MovieCompany {
+  movieId   String
+  companyId String
+
+  movie     Movie              @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  company   ProductionCompany  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@id([movieId, companyId])
+  @@map("movie_companies")
+}
+
+model SeriesCompany {
+  seriesId  String
+  companyId String
+
+  series    TVSeries           @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  company   ProductionCompany  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@id([seriesId, companyId])
+  @@map("series_companies")
+}
+
+model Country {
+  id   String @id @default(uuid())
+  name String @unique
+  code String @unique
+}
+
+model Language {
+  id   String @id @default(uuid())
+  name String @unique
+  code String @unique
+}
+
+model Category {
+  id          String          @id @default(uuid())
+  name        String          @unique
+  slug        String          @unique
+  description String?
+  movies      MovieCategory[]
+}
+
+model MovieCategory {
+  movieId    String
+  categoryId String
+
+  movie      Movie    @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([movieId, categoryId])
+  @@map("movie_categories")
+}
+
+model Rating {
+  id        String   @id @default(uuid())
+  userId    String
+  movieId   String?
+  seriesId  String?
+  score     Float
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  movie     Movie?   @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  series    TVSeries? @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, movieId])
+  @@unique([userId, seriesId])
+  @@map("ratings")
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  userId    String
+  movieId   String?
+  seriesId  String?
+  title     String?
+  content   String
+  likes     Int      @default(0)
+  dislikes  Int      @default(0)
+  isApproved Boolean @default(true)
+  isSpoiler Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  movie     Movie?   @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  series    TVSeries? @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  votes     ReviewVote[]
+
+  @@map("reviews")
+}
+
+model ReviewVote {
+  id        String   @id @default(uuid())
+  userId    String
+  reviewId  String
+  type      String   @default("like") // 'like' | 'dislike'
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  review    Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, reviewId])
+  @@map("review_votes")
+}
+
+model Watchlist {
+  id        String   @id @default(uuid())
+  userId    String
+  movieId   String?
+  seriesId  String?
+  addedAt   DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  movie     Movie?   @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  series    TVSeries? @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, movieId])
+  @@unique([userId, seriesId])
+  @@map("watchlist")
+}
+
+model Favorite {
+  id       String   @id @default(uuid())
+  userId   String
+  movieId  String?
+  seriesId String?
+  addedAt  DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  movie    Movie?   @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  series   TVSeries? @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, movieId])
+  @@unique([userId, seriesId])
+  @@map("favorites")
+}
+
+model RelatedMovie {
+  id        String @id @default(uuid())
+  movieId   String
+  relatedId String
+  relation  String @default("similar")
+
+  movie     Movie  @relation("MovieToRelated", fields: [movieId], references: [id], onDelete: Cascade)
+  related   Movie  @relation("RelatedToMovie", fields: [relatedId], references: [id], onDelete: Cascade)
+
+  @@unique([movieId, relatedId])
+  @@map("related_movies")
+}
+
+model Media {
+  id        String   @id @default(uuid())
+  movieId   String?
+  seriesId  String?
+  type      String
+  url       String
+  thumbnail String?
+  title     String?
+  order     Int      @default(0)
+
+  movie     Movie?   @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  series    TVSeries? @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+
+  @@map("media")
+}
+
+model Follow {
+  id          String   @id @default(uuid())
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  follower    User     @relation("Following", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("Followers", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@map("follows")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String
+  title     String
+  body      String
+  link      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model Activity {
+  id         String   @id @default(uuid())
+  userId     String
+  type       String
+  targetType String?
+  targetId   String?
+  targetSlug String?
+  targetTitle String?
+  metadata   String?
+  createdAt  DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("activities")
+}
