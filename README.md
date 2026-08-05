@@ -45,7 +45,7 @@ A full-stack IMDb clone to browse movies & TV series, rate and review them, buil
 |-------|-----------|
 | Frontend | [Next.js 16](https://nextjs.org) (App Router), React 19, TypeScript, Tailwind CSS 4, Heroicons, Framer Motion, Headless UI |
 | Backend | Node.js, [Express](https://expressjs.com), [Prisma ORM](https://prisma.io), JWT, bcryptjs, express-rate-limit, multer + sharp, zod |
-| Database | SQLite (development) · PostgreSQL (production) |
+| Database | PostgreSQL — Neon (production) or any local Postgres (dev) |
 
 ---
 
@@ -89,15 +89,15 @@ imdb-clone/
 cd backend
 npm install
 
-# Create the database from the Prisma schema (SQLite)
-npx prisma db push
+# Configure environment — set DATABASE_URL to a Postgres connection string
+# (create a free database on https://neon.tech, or run Postgres locally)
+cp .env.example .env
+
+# Apply the Prisma schema (PostgreSQL)
+npx prisma migrate deploy
 
 # Seed rich demo content (movies, series, episodes, people, users, reviews)
 npm run prisma:seed
-
-# Configure environment
-cp .env.example .env
-#   → set a strong JWT_SECRET
 
 # Start the API (http://localhost:4000)
 npm run dev
@@ -152,66 +152,56 @@ Open **[http://localhost:3000](http://localhost:3000)** 🎉
 
 ## 🗄️ Database Notes
 
-- **Development** uses SQLite (`backend/prisma/dev.db`, `provider = "sqlite"`). No external DB needed.
-- Run `npx prisma db push` to sync schema changes, or `npm run prisma:seed` to (re)seed everything.
+- The project uses **PostgreSQL** (Prisma `provider = "postgresql"`, `DATABASE_URL`). SQLite was used during early development; migrations have been regenerated for Postgres.
+- Run `npx prisma migrate deploy` to apply migrations, and `npm run prisma:seed` to (re)seed everything.
 - The seed includes: **13 movies, 5 TV series with full Season 1 episode lists, 77 actors/directors with real photos and bios, demo users, ratings, reviews, follows and notifications**.
-- **Production** should use PostgreSQL — see [Deployment](#deployment) below.
+- See [Deployment](#-deployment-render--neon) below.
 
 ---
 
-## 🌐 Deployment
+## 🌐 Deployment (Render + Neon)
 
-### 1. Push to GitHub
+The app is deployed as **two Render Web Services** pointing at a **Neon Postgres** database:
 
-The repo ships with a root `.gitignore` — secrets (`.env`), `node_modules/`, the SQLite DB and build artifacts are already excluded.
+- `cinevault-api` — Express + Prisma API (health check at `/api/health`)
+- `cinevault-web` — Next.js app (server-rendered, run with `next start`)
 
-```bash
-git init
-git add .
-git commit -m "Initial commit: CineVault IMDb clone"
-git branch -M main
-git remote add origin https://github.com/<your-username>/imdb-clone.git
-git push -u origin main
-```
+The repo includes a [`render.yaml`](render.yaml) Blueprint that defines both services.
 
-### 2. Deploy the frontend to Vercel
+### 1. Database — Neon Postgres
 
-1. Go to [vercel.com/new](https://vercel.com/new) and **Import** your GitHub repository
-2. In project settings set:
-   - **Root Directory:** `frontend`
-   - **Framework Preset:** Next.js (auto-detected)
-3. Add the environment variable:
-   - `NEXT_PUBLIC_API_URL` → `https://<your-api-domain>/api`
-4. **Deploy** ✅
+1. Create a free project at [neon.tech](https://neon.tech)
+2. Copy the **connection string** (Direct or pooled) — looks like:
+   `postgresql://user:password@ep-xxx.region.aws.neon.tech/cinevault?sslmode=require`
+3. Keep it handy — it becomes the `DATABASE_URL` on the backend service.
 
-### 3. Host the backend API
+### 2. Deploy on Render
 
-The Express API needs an always-on Node host (e.g. Railway, Render, or Fly.io) — it is a standalone server, not a Vercel serverless function:
+1. Push this repo to GitHub (already done — `zunaidhasan/CineVault`).
+2. In the Render dashboard: **New → Blueprint** and select the `CineVault` repo.
+3. Render creates `cinevault-api` and `cinevault-web`. Then fill in the env vars:
 
-1. Create a new Node service from the `backend/` directory
-2. Provision a **PostgreSQL** database and copy its connection string
-3. Update `backend/prisma/schema.prisma`:
+| Service | Variable | Value |
+|---------|----------|-------|
+| `cinevault-api` | `DATABASE_URL` | Your Neon connection string |
+| `cinevault-api` | `JWT_SECRET` | Strong random secret (e.g. `openssl rand -hex 32`) |
+| `cinevault-api` | `FRONTEND_URL` | `https://cinevault-web.onrender.com` |
+| `cinevault-web` | `NEXT_PUBLIC_API_URL` | `https://cinevault-api.onrender.com/api` |
 
-   ```prisma
-   datasource db {
-     provider = "postgresql"
-     url      = env("DATABASE_URL")
-   }
+4. Deploy. The build runs `prisma generate` and the pre-deploy step runs `prisma migrate deploy`.
+5. **Seed once** — open the **Shell** for `cinevault-api` and run:
+
+   ```bash
+   node prisma/seed.js
    ```
 
-4. Set environment variables on the host:
-   - `DATABASE_URL` → your Postgres connection string
-   - `JWT_SECRET` → a strong random secret
-   - `FRONTEND_URL` → `https://<your-app>.vercel.app`
-5. Run once: `npx prisma db push && npm run prisma:seed`
+   > ⚠️ The seed wipes and re-creates all content, so run it only once (or when you want to reset the demo data). Do **not** add it to the build/pre-deploy pipeline, or registered users and their data would be erased on every deploy.
 
-> **Note:** Run `npx prisma generate` after changing the datasource provider.
+### 3. Notes & limitations
 
-### 4. Point them at each other
-
-- Frontend env `NEXT_PUBLIC_API_URL` = `https://<your-api-domain>/api`
-- Backend env `FRONTEND_URL` = `https://<your-app>.vercel.app` (CORS allowlist)
-- Done 🎉 — your IMDb clone is live!
+- Render **free** web services spin down after ~15 min of inactivity; the first request after idle takes ~30–60 s (cold start).
+- Render's filesystem is **ephemeral** — files uploaded via the API (`backend/uploads/`) are lost on redeploy. For permanent uploads, use object storage (e.g. Cloudinary/S3). Seed content uses `frontend/public` assets, which are unaffected.
+- Uploaded images are served at `https://cinevault-api.onrender.com/uploads/...`.
 
 ---
 

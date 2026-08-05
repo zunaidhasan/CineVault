@@ -1,0 +1,40 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+# Deploy: Render dashboard → New → Blueprint → select zunaidhasan/CineVault
+# Then fill in the `sync: false` env vars (see README "Deployment" section).
+
+services:
+  # ---- Backend: Express + Prisma REST API ----
+  - type: web
+    name: cinevault-api
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm install && npx prisma generate
+    preDeployCommand: npx prisma migrate deploy
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false # ← paste your Neon connection string
+      - key: JWT_SECRET
+        sync: false # ← long random string, e.g. `openssl rand -hex 32`
+      - key: FRONTEND_URL
+        sync: false # ← https://cinevault-web.onrender.com
+      - key: UPLOAD_DIR
+        value: uploads
+
+  # ---- Frontend: Next.js App Router (server-rendered, needs Node runtime) ----
+  - type: web
+    name: cinevault-web
+    runtime: node
+    plan: free
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_API_URL
+        sync: false # ← https://cinevault-api.onrender.com/api
