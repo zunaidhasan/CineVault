@@ -10,7 +10,27 @@ const app = express();
 const prisma = new PrismaClient();
 
 // Middleware
-app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:3000', credentials: true }));
+// CORS — allow the deployed frontend (FRONTEND_URL), local dev, and Vercel previews.
+// Trailing slashes are stripped so "https://app.vercel.app/" matches the browser origin.
+const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:3000')
+  .split(',')
+  .map((origin) => origin.trim().replace(/\/+$/, ''));
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Strip trailing slashes ("https://app.vercel.app/" → "https://app.vercel.app")
+      const normalized = origin ? origin.replace(/\/+$/, '') : origin;
+      // No origin (curl, server-to-server) → allow. Known origin or Vercel preview → allow.
+      if (!normalized || allowedOrigins.includes(normalized) || normalized.endsWith('.vercel.app')) {
+        callback(null, true);
+      } else {
+        callback(null, false);
+      }
+    },
+    credentials: true,
+  })
+);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
