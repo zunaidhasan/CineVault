@@ -170,9 +170,10 @@ The app is deployed across three providers:
 ### 1. Database — Neon Postgres
 
 1. Create a free project at [neon.tech](https://neon.tech)
-2. Copy the **connection string** (Direct or pooled) — looks like:
-   `postgresql://user:password@ep-xxx.region.aws.neon.tech/cinevault?sslmode=require`
-3. It becomes the `DATABASE_URL` on the Render backend service.
+2. Copy the **connection string** — looks like:
+   `postgresql://user:password@ep-xxx-pooler.region.aws.neon.tech/cinevault?sslmode=require`
+3. ⚠️ Remove any `&channel_binding=require` parameter — it breaks Prisma Migrate's advisory locking on Neon's pooled endpoint (build error `P1002`). Keep just `?sslmode=require`.
+4. It becomes the `DATABASE_URL` on the Render backend service.
 
 ### 2. Backend — deploy on Render
 
